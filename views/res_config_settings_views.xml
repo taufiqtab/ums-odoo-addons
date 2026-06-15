@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_ums" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.ums</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[hasclass('settings')]" position="inside">
+                <div class="app_settings_block" data-string="UMS" string="UMS" data-key="ums_auth">
+                    <h2>UMS Authentication</h2>
+                    <div class="row mt16 o_settings_container">
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_left_pane"/>
+                            <div class="o_setting_right_pane">
+                                <label for="ums_base_url"/>
+                                <div class="text-muted">Base URL of the UMS server</div>
+                                <field name="ums_base_url" placeholder="https://ums.yourserver.com"/>
+                            </div>
+                        </div>
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_left_pane"/>
+                            <div class="o_setting_right_pane">
+                                <label for="ums_app_id"/>
+                                <div class="text-muted">Application ID registered in UMS</div>
+                                <field name="ums_app_id" placeholder="odoo-app"/>
+                            </div>
+                        </div>
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_left_pane"/>
+                            <div class="o_setting_right_pane">
+                                <label for="ums_callback_url"/>
+                                <div class="text-muted">Callback URL (this Odoo instance)</div>
+                                <field name="ums_callback_url" placeholder="https://odoo.yourserver.com/ums/callback"/>
+                            </div>
+                        </div>
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_left_pane"/>
+                            <div class="o_setting_right_pane">
+                                <label for="ums_default_groups"/>
+                                <div class="text-muted">Comma-separated XML IDs for auto-created users</div>
+                                <field name="ums_default_groups" placeholder="base.group_user,stock.group_stock_user"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>
