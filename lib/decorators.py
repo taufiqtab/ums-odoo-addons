@@ -13,7 +13,20 @@ _logger = logging.getLogger(__name__)
 
 
 def _json_error(message, status=401):
-    """Return a JSON error response."""
+    """Return a JSON error response.
+    
+    For type='json' routes, we raise an exception or return a dict.
+    For type='http' routes, we return a Response object.
+    """
+    from odoo.http import request
+    # Check if this is a JSON-RPC request
+    if request.httprequest.content_type and 'json' in request.httprequest.content_type:
+        # For JSON-RPC routes, return error dict
+        # Odoo wraps this in jsonrpc response automatically
+        from odoo.exceptions import AccessDenied, AccessError
+        if status == 403:
+            raise AccessError(message)
+        raise AccessDenied(message)
     return Response(
         json.dumps({"success": False, "message": message}),
         status=status,

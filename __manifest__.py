@@ -10,6 +10,7 @@
     "data": [
         "security/ir.model.access.csv",
         "views/res_config_settings_views.xml",
+        "views/test_page_templates.xml",
     ],
     "external_dependencies": {
         "python": ["PyJWT", "cryptography", "requests"],
