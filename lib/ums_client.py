@@ -18,6 +18,11 @@ _jwks_lock = threading.Lock()
 _jwks_cache = {"keys": None, "fetched_at": 0}
 _JWKS_TTL = 3600  # 1 hour
 
+# Modules cache (thread-safe, keyed by JTI)
+_modules_lock = threading.Lock()
+_modules_cache = {}  # {jti: {"modules": [...], "fetched_at": float}}
+_MODULES_TTL = 300  # 5 minutes
+
 
 def _get_ums_base_url():
     """Get UMS base URL from Odoo system parameters."""
@@ -100,6 +105,99 @@ def validate_token(token, base_url=None):
         invalidate_jwks_cache()
         public_key = _get_public_key(base_url)
         return jwt.decode(token, public_key, algorithms=["RS256"])
+
+
+def fetch_modules(token, base_url=None):
+    """Fetch user modules from UMS API.
+
+    Used for lean JWT tokens that don't include modules in payload.
+
+    Args:
+        token: JWT access token string
+        base_url: Optional UMS base URL override
+
+    Returns:
+        list of module claim dicts
+
+    Raises:
+        requests.RequestException: Network error
+        ValueError: Invalid response
+    """
+    if not base_url:
+        base_url = _get_ums_base_url()
+
+    if not base_url:
+        raise ValueError("UMS base URL not configured")
+
+    resp = requests.get(
+        f"{base_url}/api/v1/me/modules",
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=10,
+        verify=False,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    return data.get("data", [])
+
+
+def validate_token_with_modules(token, base_url=None):
+    """Validate token and auto-fetch modules if lean token (with caching).
+
+    This is the recommended method for apps using lean tokens.
+    Modules are cached in-memory for 5 minutes keyed by JTI,
+    so subsequent requests with the same token won't hit the API.
+
+    Args:
+        token: JWT string from UMS
+        base_url: Optional UMS base URL override
+
+    Returns:
+        dict with decoded JWT claims (modules always populated)
+
+    Raises:
+        jwt.ExpiredSignatureError: Token has expired
+        jwt.InvalidTokenError: Token is invalid
+        ValueError: JWKS or URL not available
+    """
+    claims = validate_token(token, base_url)
+
+    # If modules are already in token (full JWT), return as-is
+    if claims.get("modules"):
+        return claims
+
+    # Cache key: use JTI (unique per token)
+    cache_key = claims.get("jti", f"{claims.get('user_id', '')}:{claims.get('app_id', '')}")
+
+    # Try cache first
+    now = time.time()
+    with _modules_lock:
+        entry = _modules_cache.get(cache_key)
+        if entry and (now - entry["fetched_at"]) < _MODULES_TTL:
+            claims["modules"] = entry["modules"]
+            return claims
+
+    # Cache miss — fetch from API
+    modules = fetch_modules(token, base_url)
+
+    # Store in cache
+    with _modules_lock:
+        _modules_cache[cache_key] = {"modules": modules, "fetched_at": now}
+
+    claims["modules"] = modules
+    return claims
+
+
+def invalidate_modules_cache(jti=None):
+    """Invalidate modules cache.
+
+    Args:
+        jti: Specific JTI to invalidate. If None, clears all cached modules.
+    """
+    with _modules_lock:
+        if jti:
+            _modules_cache.pop(jti, None)
+        else:
+            _modules_cache.clear()
 
 
 def get_user():
